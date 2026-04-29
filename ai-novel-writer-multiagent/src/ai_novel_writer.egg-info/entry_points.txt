@@ -1,0 +1,2 @@
+[console_scripts]
+novel-writer = ai_novel_writer.cli:main

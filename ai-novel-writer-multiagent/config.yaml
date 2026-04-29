@@ -1,0 +1,39 @@
+# ============================================================
+# AI Novel Writer — Multi-Agent Configuration
+# ============================================================
+
+project:
+  name: "my-novel"
+  output_dir: "./output"
+  language: "zh"          # zh / en
+
+pipeline:
+  stages:
+    - outline             # 大纲规划
+    - character            # 角色设计
+    - chapter              # 章节写作
+    - dialogue             # 对话润色
+    - continuity           # 连贯性检查
+    - review               # 质量审核
+  auto_fix: true          # 自动修复审核发现的问题
+  max_retries: 3          # 每阶段最大重试次数
+
+generation:
+  min_chapter_words: 3000
+  max_chapter_words: 8000
+  style: "网络小说"       # 写作风格标签
+  genre: "玄幻"           # 题材
+
+memory:
+  vector_store: "chromadb"
+  persist_dir: "./chroma_db"
+  checkpoint_interval: 5  # 每N章保存进度快照
+
+review:
+  quality_threshold: 7.0  # 质量评分阈值 (0-10)
+  checks:
+    - plot_holes
+    - character_consistency
+    - pacing
+    - dialogue_quality
+    - grammar

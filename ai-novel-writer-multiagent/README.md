@@ -1,0 +1,312 @@
+# AI Novel Writer — Multi-Agent 小说写作流水线
+
+[![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat&logo=python&logoColor=white)](https://python.org)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![OpenAI](https://img.shields.io/badge/LLM-OpenAI_Compatible-412991)](https://openai.com)
+
+一个基于 **多 Agent 协作** 的 AI 小说自动写作系统。将创作流程拆解为 6 个专业 Agent，各司其职，协同完成从概念到完整小说的全流程自动化写作。
+
+## 🎯 核心理念
+
+传统 AI 写作通常是「一次性 prompting」——给一段 prompt 就输出全文，缺乏结构、连贯性差、容易穿帮。
+
+本项目的解决方案：**将写作流程 Agent 化**，模拟人类团队创作模式——
+
+> 策划编辑 → 角色设计师 → 小说作者 → 对白编辑 → 校审员 → 终审
+
+每个 Agent 拥有独立的 Prompt、模型配置和上下文窗口，通过编排器 (Orchestrator) 协作，形成一条完整的 **创作流水线 (Pipeline)**。
+
+## 🏗️ 系统架构
+
+```
+┌──────────────┐
+│  User Input   │  用户输入创作概念
+└──────┬───────┘
+       │
+┌──────▼───────┐
+│ Outline       │  大纲 Agent: 策划情节树、分章大纲、伏笔布局
+│ Agent         │  Model: GPT-4o / DeepSeek-V3
+└──────┬───────┘
+       │
+┌──────▼───────┐
+│ Character     │  角色 Agent: 设计人物、成长弧线、关系网络
+│ Agent         │  Model: GPT-4o / DeepSeek-V3
+└──────┬───────┘
+       │
+┌──────▼──────────────┐
+│                     │
+│  ┌────────────────┐ │  ┌──────────────────┐
+│  │ Chapter Writer │◄┼──┤  Memory Store     │
+│  │ Agent          │ │  │  (ChromaDB + JSON)│
+│  └───────┬────────┘ │  └──────────────────┘
+│          │           │
+│  ┌───────▼────────┐ │  上下文注入:
+│  │ Dialogue Agent │ │  · 前5章摘要
+│  └───────┬────────┘ │  · 角色当前状态快照
+│          │           │  · 待回收伏笔清单
+│  ┌───────▼────────┐ │  · 语义搜索相关段落
+│  │ Continuity     │ │
+│  │ Agent          │ │  连贯性检查:
+│  └───────┬────────┘ │  · 时间线一致性
+│          │           │  · 角色状态矛盾
+│  ┌───────▼────────┐ │  · 能力设定穿帮
+│  │ Review Agent   │ │  · 伏笔状态追踪
+│  └───────┬────────┘ │
+│          │           │
+│     ┌────▼────┐     │
+│     │ Pass?   ├── No → Auto-Fix → 重新写作
+│     └────┬────┘     │
+│          │ Yes       │
+│     ┌────▼────┐     │
+│     │ Publish │     │
+│     └─────────┘     │
+│                     │
+│     ← 迭代每一章 →   │
+└─────────────────────┘
+       │
+┌──────▼───────┐
+│  Export       │  导出完整小说 (Markdown / TXT / JSON)
+└──────────────┘
+```
+
+## ✨ 核心特性
+
+| 特性 | 说明 |
+|------|------|
+| **6 个专业 Agent** | 大纲、角色、章节写作、对话润色、连贯性检查、质量审核 |
+| **记忆系统 (Memory)** | ChromaDB 向量存储 + JSON 结构化状态，防穿帮 |
+| **上下文注入** | 每章自动注入前文摘要、角色状态、待回收伏笔 |
+| **质量门控 (Quality Gate)** | 逐章评分，不通过则自动修复 |
+| **自动修复 (Auto-Fix)** | 审核不通过时自动重写，最多 3 次 |
+| **多模型支持** | 兼容 OpenAI / DeepSeek / Qwen / 任意 OpenAI 兼容 API |
+| **断点续写** | 支持从任意章节恢复写作 |
+| **多格式导出** | Markdown / TXT / JSON |
+
+## 📦 安装
+
+```bash
+# 克隆仓库
+git clone https://github.com/YOUR_USERNAME/ai-novel-writer.git
+cd ai-novel-writer
+
+# 安装依赖
+pip install -r requirements.txt
+
+# 或以开发模式安装
+pip install -e ".[dev]"
+```
+
+## ⚙️ 配置
+
+### 1. 环境变量
+
+复制 `.env.example` 为 `.env` 并填入你的 API Key：
+
+```bash
+cp .env.example .env
+```
+
+```env
+LLM_PROVIDER=openai          # openai / deepseek / qwen / custom
+OPENAI_API_KEY=sk-xxxxx
+OPENAI_BASE_URL=https://api.openai.com/v1
+
+# Agent 模型配置（可按需求替换）
+MODEL_OUTLINE=gpt-4o
+MODEL_CHARACTER=gpt-4o
+MODEL_CHAPTER=gpt-4o
+MODEL_DIALOGUE=gpt-4o
+MODEL_REVIEW=gpt-4o-mini
+MODEL_CONTINUITY=gpt-4o-mini
+```
+
+### 2. YAML 配置 (可选)
+
+使用 `config.yaml` 进行更细致的控制：
+
+```yaml
+project:
+  name: "my-novel"
+  language: "zh"
+
+generation:
+  min_chapter_words: 3000
+  style: "网络小说"
+  genre: "玄幻"
+
+review:
+  quality_threshold: 7.0
+
+memory:
+  vector_store: "chromadb"
+  checkpoint_interval: 5
+```
+
+## 🚀 快速开始
+
+### 创建新小说
+
+```bash
+# 基本用法
+novel-writer new "一个废柴少年意外获得上古神兽传承，踏上逆天改命之路"
+
+# 高级配置
+novel-writer new "概念" \
+  -c 30 \                    # 30 章
+  -g 科幻 \                   # 题材
+  -s 硬核 \                   # 风格
+  --min-words 5000 \          # 每章至少 5000 字
+  --threshold 8.0 \           # 质量阈值 8.0
+  -o ./my_scifi_novel         # 输出目录
+```
+
+### 继续写作
+
+```bash
+novel-writer continue ./my_scifi_novel
+```
+
+### 导出小说
+
+```bash
+novel-writer export ./my_scifi_novel       # Markdown
+novel-writer export ./my_scifi_novel -f txt # 纯文本
+```
+
+### 查看 Agent 配置
+
+```bash
+novel-writer list-models
+```
+
+## 📂 项目结构
+
+```
+ai-novel-writer/
+├── src/ai_novel_writer/
+│   ├── agents/                  # 6 个专业 Agent
+│   │   ├── base.py              #   Agent 基类
+│   │   ├── outline_agent.py     #   大纲 Agent
+│   │   ├── character_agent.py   #   角色 Agent
+│   │   ├── chapter_writer.py    #   章节写作 Agent
+│   │   ├── dialogue_agent.py    #   对话润色 Agent
+│   │   ├── reviewer.py          #   质量审核 Agent
+│   │   └── continuity_checker.py#   连贯性检查 Agent
+│   ├── memory/                  # 记忆系统
+│   │   └── memory_store.py      #   ChromaDB + JSON 记忆存储
+│   ├── models/
+│   │   └── schemas.py           # Pydantic 数据模型
+│   ├── prompts/
+│   │   └── templates.py         # Prompt 模板库
+│   ├── utils/
+│   │   ├── llm.py               # LLM 客户端 (OpenAI 兼容)
+│   │   └── io.py                # 文件 I/O 工具
+│   ├── orchestrator.py          # 🔥 编排器 (核心流水线)
+│   └── cli.py                   # CLI 入口
+├── tests/                       # 测试
+├── examples/                    # 示例
+├── config.yaml                  # 流水线配置
+├── pyproject.toml
+├── requirements.txt
+└── README.md
+```
+
+## 🔧 Agent 详解
+
+### 1. Outline Agent (大纲 Agent)
+- **职责**: 接收创作概念，生成完整情节树和分章大纲
+- **输出**: 一句话梗概、故事概要、世界观设定、情节树、分章大纲
+
+### 2. Character Agent (角色 Agent)
+- **职责**: 基于大纲设计人物角色
+- **输出**: 角色姓名/定位/外貌/性格/背景/欲望/成长弧线/关系网络
+
+### 3. Chapter Writer Agent (章节写作 Agent)
+- **职责**: 在记忆系统的上下文支持下逐章写作
+- **注入上下文**: 前 5 章摘要、角色状态、待回收伏笔、相关段落
+- **输出**: 3000+ 字章节日正文
+
+### 4. Dialogue Agent (对话润色 Agent)
+- **职责**: 优化对话个性化、补充神态动作描写
+- **约束**: 不改变情节走向，只优化语言表达
+
+### 5. Continuity Agent (连贯性检查 Agent)
+- **职责**: 检查前后文一致性，杜绝穿帮
+- **检查维度**: 时间线、角色状态、能力设定、物品道具、伏笔
+
+### 6. Review Agent (审核 Agent)
+- **职责**: 多维度评分 (情节/角色/节奏/对话/文笔/爽点/完成度)
+- **阈值**: 低于阈值的章节触发自动修复循环
+
+## 🧠 记忆系统 (Memory System)
+
+防止 AI 写小说「穿帮」的核心机制：
+
+```
+章节 1 ──→ 章节 2 ──→ 章节 3 ──→ ... ──→ 章节 N
+ │            │            │                   │
+ ├─ 存储摘要   ├─ 存储摘要   ├─ 存储摘要          └─ 存储摘要
+ ├─ 角色快照   ├─ 角色快照   ├─ 角色快照
+ ├─ 埋伏笔     ├─ 埋新伏笔   ├─ 回收伏笔2
+ └─ 事件记录   └─ 事件记录   └─ 事件记录
+
+      ChromaDB 向量存储  +  JSON 结构化状态
+              │
+        每章写作时自动检索相关上下文
+```
+
+## 🌐 支持 LLM 提供商
+
+| 提供商 | 配置方式 |
+|--------|---------|
+| OpenAI | `LLM_PROVIDER=openai`, 默认 Base URL |
+| DeepSeek | `LLM_PROVIDER=custom`, `OPENAI_BASE_URL=https://api.deepseek.com/v1` |
+| 通义千问 | `LLM_PROVIDER=custom`, `OPENAI_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1` |
+| Ollama (本地) | `LLM_PROVIDER=custom`, `OPENAI_BASE_URL=http://localhost:11434/v1` |
+| 任意兼容 | 配置 `OPENAI_BASE_URL` 为相应地址即可 |
+
+## 📊 Agent 间通信协议
+
+所有 Agent 通过标准化的 `AgentMessage` 进行通信：
+
+```python
+AgentMessage(
+    from_role=AgentRole.OUTLINE,     # 发送方
+    to_role=AgentRole.CHARACTER,     # 接收方
+    content="大纲内容...",            # 消息体
+    metadata={                       # 结构化元数据
+        "chapter_number": 5,
+        "quality_threshold": 7.0,
+    }
+)
+```
+
+每个 Agent 执行后返回下游结果，编织成完整的创作流水线。
+
+## 🧪 运行测试
+
+```bash
+pip install -e ".[dev]"
+pytest tests/ -v --cov=ai_novel_writer
+```
+
+## 📝 License
+
+MIT License — 自由使用、修改、分发。
+
+## ⭐ Star History
+
+如果你觉得这个项目有意思，请给一个 Star！
+
+---
+
+**[English]**
+
+AI Novel Writer is a multi-agent collaborative writing system that splits novel creation into specialized agent roles, each powered by configurable LLMs. The pipeline includes Outline, Character Design, Chapter Writing, Dialogue Polish, Continuity Check, and Quality Review stages — all coordinated through a central Orchestrator with memory injection and auto-fix capabilities.
+
+- **6 specialized agents** with independent prompts and model configs
+- **Memory system** using ChromaDB vector store + structured JSON state
+- **Quality gate** with automatic retry/fix loop
+- **Multi-provider** support (OpenAI, DeepSeek, Qwen, Ollama, custom)
+- **Checkpoint & resume** support
+- **Markdown / TXT / JSON export**
